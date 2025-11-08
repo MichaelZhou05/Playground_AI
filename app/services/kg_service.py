@@ -4,6 +4,7 @@ Handles all networkx graph construction and topic summarization.
 """
 import networkx as nx
 import json
+import random
 from vertexai.preview import rag
 from vertexai.generative_models import GenerativeModel
 
@@ -176,5 +177,90 @@ def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tupl
     print("EDGES: ", edges)
     print("DATA: ", kg_data)
 
+    return (nodes_json, edges_json, data_json)
+
+
+def build_knowledge_graph_mock(topic_list: list, files: list) -> tuple[str, str, str]:
+    """
+    Mock version of build_knowledge_graph for UI testing.
+    Creates a knowledge graph without calling Vertex AI or Gemini APIs.
+    
+    Args:
+        topic_list: List of topic strings from professor input (or newline-separated string)
+        files: List of file objects from Canvas
+        
+    Returns:
+        Tuple of (nodes_json, edges_json, data_json) as serialized JSON strings
+    """
+    # Initialize data structures
+    nodes = []
+    edges = []
+    kg_data = {}
+    
+    # Parse topic_list
+    if isinstance(topic_list, str):
+        topics = [t.strip() for t in topic_list.split('\n') if t.strip()]
+    else:
+        topics = [str(t).strip() for t in topic_list if str(t).strip()]
+    
+    # Create File Nodes
+    file_name_to_id = {}
+    for file_obj in files:
+        if isinstance(file_obj, dict):
+            file_id = str(file_obj.get('id', ''))
+            file_name = file_obj.get('name') or file_obj.get('display_name', 'Unknown File')
+        else:
+            file_id = str(getattr(file_obj, 'id', ''))
+            file_name = getattr(file_obj, 'name', None) or getattr(file_obj, 'display_name', 'Unknown File')
+        
+        if not file_id:
+            continue
+        
+        file_node = {
+            'id': file_id,
+            'label': file_name,
+            'group': 'file_pdf'
+        }
+        nodes.append(file_node)
+        file_name_to_id[file_name] = file_id
+    
+    # Create Topic Nodes and Mock Connections
+    for i, topic in enumerate(topics):
+        topic_id = f"topic_{i+1}"
+        
+        topic_node = {
+            'id': topic_id,
+            'label': topic,
+            'group': 'topic'
+        }
+        nodes.append(topic_node)
+        
+        # Mock: Connect each topic to 2-3 random files
+        file_ids = list(file_name_to_id.values())
+        if file_ids:
+            num_connections = min(random.randint(2, 3), len(file_ids))
+            connected_files = random.sample(file_ids, num_connections)
+            
+            for file_id in connected_files:
+                edge = {
+                    'from': topic_id,
+                    'to': file_id
+                }
+                edges.append(edge)
+            
+            # Mock summary and sources
+            connected_file_names = [
+                name for name, fid in file_name_to_id.items() 
+                if fid in connected_files
+            ]
+            kg_data[topic_id] = {
+                'summary': f"This is a mock summary for {topic}. It covers the key concepts and principles related to this topic based on the course materials. This summary demonstrates how topic information would be displayed when clicking on a topic node in the knowledge graph visualization.",
+                'sources': connected_file_names
+            }
+    
+    # Serialize to JSON strings
+    nodes_json = json.dumps(nodes)
+    edges_json = json.dumps(edges)
+    data_json = json.dumps(kg_data)
     
     return (nodes_json, edges_json, data_json)

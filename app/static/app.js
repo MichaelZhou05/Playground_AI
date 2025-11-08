@@ -49,7 +49,9 @@ function setupInitPage() {
             const result = await response.json();
             
             if (result.status === 'complete') {
-                currentState = 'GENERATING';
+                // Since mock mode completes instantly, go directly to ACTIVE
+                // In production, you'd set to GENERATING and poll
+                currentState = 'ACTIVE';
                 initializeUI();
             }
         } catch (error) {
@@ -61,9 +63,30 @@ function setupInitPage() {
 
 // Poll for completion when in GENERATING state
 async function pollForCompletion() {
-    // TODO: Implement polling logic
-    // Check the course status every few seconds
-    // When status becomes ACTIVE, reload the page or update state
+    // Poll every 2 seconds to check if the course is ready
+    const pollInterval = setInterval(async () => {
+        try {
+            // Check the course status by trying to fetch graph data
+            const response = await fetch(`/api/get-graph?course_id=${COURSE_ID}`);
+            const data = await response.json();
+            
+            // If we get valid graph data (not empty), the course is ACTIVE
+            const nodes = JSON.parse(data.nodes || '[]');
+            if (nodes.length > 0) {
+                // Course is ready!
+                clearInterval(pollInterval);
+                currentState = 'ACTIVE';
+                initializeUI();
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+        }
+    }, 2000); // Check every 2 seconds
+    
+    // Stop polling after 60 seconds (timeout)
+    setTimeout(() => {
+        clearInterval(pollInterval);
+    }, 60000);
 }
 
 // Setup the main application page
@@ -87,41 +110,101 @@ async function loadGraphData() {
         const response = await fetch(`/api/get-graph?course_id=${COURSE_ID}`);
         const data = await response.json();
         
+        console.log('Graph data received:', data); // Debug log
+        
         graphData = {
-            nodes: JSON.parse(data.nodes),
-            edges: JSON.parse(data.edges),
-            data: JSON.parse(data.data)
+            nodes: JSON.parse(data.nodes || '[]'),
+            edges: JSON.parse(data.edges || '[]'),
+            data: JSON.parse(data.data || '{}')
         };
+        
+        console.log('Parsed graph data:', graphData); // Debug log
+        console.log('Number of nodes:', graphData.nodes.length); // Debug log
+        console.log('Number of edges:', graphData.edges.length); // Debug log
+        
+        if (graphData.nodes.length === 0) {
+            console.warn('No nodes found in graph data!');
+        }
     } catch (error) {
         console.error('Failed to load graph data:', error);
+        alert('Failed to load graph data. Please check the console for details.');
     }
 }
 
 // Initialize the Vis.js graph visualization
 function initializeGraph() {
-    if (!graphData) return;
+    if (!graphData) {
+        console.error('No graph data available');
+        return;
+    }
+    
+    if (graphData.nodes.length === 0) {
+        console.warn('Graph data has no nodes');
+        return;
+    }
     
     const container = document.getElementById('graph-network');
+    if (!container) {
+        console.error('Graph container not found');
+        return;
+    }
+    
     const data = {
         nodes: new vis.DataSet(graphData.nodes),
         edges: new vis.DataSet(graphData.edges)
     };
     
     const options = {
-        // TODO: Configure Vis.js options
-        // Set colors for topic vs file nodes
-        // Configure physics, layout, etc.
+        nodes: {
+            shape: 'dot',
+            size: 20,
+            font: { size: 14, color: '#333' },
+            borderWidth: 2,
+            shadow: true
+        },
+        edges: {
+            width: 2,
+            color: { color: '#848484' },
+            smooth: { type: 'continuous' },
+            arrows: { to: { enabled: false } }
+        },
+        groups: {
+            topic: {
+                color: { background: '#FF6B6B', border: '#C92A2A' },
+                shape: 'box',
+                size: 30
+            },
+            file_pdf: {
+                color: { background: '#4ECDC4', border: '#2C7873' },
+                shape: 'dot',
+                size: 20
+            }
+        },
+        physics: {
+            enabled: true,
+            stabilization: { iterations: 200 }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200
+        }
     };
     
-    network = new vis.Network(container, data, options);
-    
-    // Handle node clicks
-    network.on('click', (params) => {
-        if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0];
-            showNodeDetails(nodeId);
-        }
-    });
+    try {
+        network = new vis.Network(container, data, options);
+        console.log('Network initialized successfully');
+        
+        // Handle node clicks
+        network.on('click', (params) => {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                showNodeDetails(nodeId);
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing network:', error);
+        alert('Error initializing graph visualization. Check console for details.');
+    }
 }
 
 // Show details for a clicked node
