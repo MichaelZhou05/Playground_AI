@@ -103,7 +103,7 @@ def determine_optimal_clusters(vectors, max_clusters: int = 10) -> int:
             
             # The elbow is where the second derivative is largest (most positive)
             # This indicates the point where adding clusters stops being as beneficial
-            elbow_index = np.argmax(second_diff) + 2  # +2 because we lost 2 elements in diff operations
+            elbow_index = min(np.argmax(second_diff) + 2, len(k_values) - 1)  # +2 because we lost 2 elements in diff operations
             
             optimal_k = k_values[elbow_index]
         
