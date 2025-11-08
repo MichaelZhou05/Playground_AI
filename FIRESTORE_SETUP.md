@@ -53,15 +53,7 @@ Run the Firestore service test:
 python app/services/firestore_service.py
 ```
 
-You should see:
-```
-✓ Firestore client created successfully
-✓ Test document created
-✓ Test document retrieved
-✓ Test document deleted
-🎉 ALL TESTS PASSED - Firestore is configured correctly!
-```
-
+You should see output similar to:
 ---
 
 ## Option 2: Application Default Credentials (ADC)
