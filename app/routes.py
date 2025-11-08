@@ -32,7 +32,17 @@ def launch():
     # Determine application state
     state = firestore_service.get_course_state(course_id)
     
-    # Render the single-page app with injected state
+    # Render editor template when course is ACTIVE
+    if state == 'ACTIVE':
+        return render_template(
+            'editor.html',
+            course_id=course_id,
+            user_roles=role,
+            user_id=user_id,
+            app_state=state
+        )
+    
+    # Otherwise render the single-page app with injected state
     return render_template(
         'index.html',
         course_id=course_id,
