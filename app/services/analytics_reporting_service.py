@@ -33,6 +33,8 @@ else:
 
 logger = logging.getLogger(__name__)
 
+# Constants
+CLUSTER_SAMPLE_SIZE = 10  # Number of sample events to use for cluster labeling
 
 # ============================================================================
 # MAIN ANALYTICS PIPELINE
@@ -203,7 +205,7 @@ def run_daily_analytics(course_id: str, n_clusters: int = None, auto_detect_clus
                 continue
             
             # Get events for this cluster
-            cluster_events = firestore_service.get_analytics_events_by_ids(cluster_doc_ids[:10])  # Use top 10
+            cluster_events = firestore_service.get_analytics_events_by_ids(cluster_doc_ids[:CLUSTER_SAMPLE_SIZE])
             
             # Extract query texts
             query_texts = [event.get('query_text', '') for event in cluster_events if event.get('query_text')]
