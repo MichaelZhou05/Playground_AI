@@ -360,7 +360,6 @@ def get_analytics(course_id):
     Returns cluster analysis and insights for professors.
     """
     try:
-        from .services import analytics_reporting_service
         
         report = analytics_reporting_service.get_analytics_report(course_id)
         
