@@ -196,19 +196,102 @@ def rate_answer(doc_id: str, rating: str) -> None:
 
 if __name__ == "__main__":
     """
-    Script to log a batch of queries into Firestore with embeddings.
+    Script to randomly rate existing queries in Firestore.
+    Fetches chat queries and assigns random helpful/not_helpful ratings.
     """
     from dotenv import load_dotenv
     import time
+    import random
     
     load_dotenv()
     
     print("="*70)
-    print("BATCH QUERY LOGGING TO FIRESTORE")
+    print("RANDOM RATING SCRIPT FOR ANALYTICS TESTING")
     print("="*70)
     
     # Configuration
     COURSE_ID = "13299557"  # Update this to your course ID
+    
+    print(f"\nCourse ID: {COURSE_ID}")
+    print(f"\nFetching existing chat queries...")
+    print("="*70)
+    
+    try:
+        # Fetch existing chat events
+        events = firestore_service.get_analytics_events(COURSE_ID, event_type='chat')
+        
+        if not events:
+            print("\n❌ No chat queries found for this course.")
+            print("Run the chat interface or batch logging script first to create queries.")
+            exit(1)
+        
+        print(f"\n✓ Found {len(events)} chat queries")
+        print(f"\nRandomly rating queries...")
+        print("="*70)
+        
+        rated_count = 0
+        skipped_count = 0
+        
+        for i, event in enumerate(events, 1):
+            doc_id = event.get('doc_id')
+            query_text = event.get('query_text', 'N/A')
+            current_rating = event.get('rating')
+            
+            if not doc_id:
+                print(f"\n[{i}/{len(events)}] ⚠️  Skipped: No doc_id found")
+                skipped_count += 1
+                continue
+            
+            # Randomly choose a rating (60% helpful, 30% not_helpful, 10% skip for no rating)
+            rand = random.random()
+            if rand < 0.7:
+                # 10% chance to skip (leave unrated)
+                print(f"\n[{i}/{len(events)}] ⚪ Skipped (no rating): {query_text[:50]}...")
+                print(f"  doc_id: {doc_id}")
+                skipped_count += 1
+                continue
+            elif rand < 0.8:
+                # 60% chance for helpful
+                rating = "helpful"
+                emoji = "👍"
+            else:
+                # 30% chance for not_helpful
+                rating = "not_helpful"
+                emoji = "👎"
+            
+            print(f"\n[{i}/{len(events)}] {emoji} Rating as '{rating}': {query_text[:50]}...")
+            print(f"  doc_id: {doc_id}")
+            
+            try:
+                # Rate the answer
+                rate_answer(doc_id, rating)
+                rated_count += 1
+                print(f"  ✓ Successfully rated")
+                
+                # Small delay to avoid overwhelming Firestore
+                time.sleep(0.3)
+                
+            except Exception as e:
+                print(f"  ✗ Error rating: {e}")
+        
+        print(f"\n{'='*70}")
+        print(f"RATING COMPLETE")
+        print(f"{'='*70}")
+        print(f"  👍 Rated as helpful: ~{int(rated_count * 0.6)}")
+        print(f"  👎 Rated as not_helpful: ~{int(rated_count * 0.4)}")
+        print(f"  ⚪ Left unrated: {skipped_count}")
+        print(f"  Total processed: {len(events)}")
+        print(f"{'='*70}")
+        print(f"\nRatings saved to Firestore!")
+        print(f"Run analytics_reporting_service to see the breakdown in reports.")
+        
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+
+    
+    # Configuration
     
     queries = [] #script for logging multiple queries
     

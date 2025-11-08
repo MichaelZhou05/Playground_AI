@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Analytics Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Inject server-side data -->
+    <script>
+        const APP_COURSE_ID = "{{ course_id }}";
+    </script>
+
+    <div id="analytics-dashboard">
+        <header class="dashboard-header">
+            <h1>Course Analytics Dashboard</h1>
+            <p class="course-id">Course ID: <span>{{ course_id }}</span></p>
+            <button id="regenerate-button" class="btn-primary">
+                <span class="btn-icon">🔄</span>
+                <span class="btn-text">Regenerate Report</span>
+            </button>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading analytics data...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="error-container" style="display: none;">
+            <h2>Error Loading Analytics</h2>
+            <p id="error-message"></p>
+            <button id="retry-button" class="btn-secondary">Retry</button>
+        </div>
+
+        <!-- Main Dashboard Content -->
+        <div id="dashboard-content" style="display: none;">
+            <!-- Summary Stats -->
+            <section class="stats-section">
+                <div class="stat-card">
+                    <h3>Total Queries</h3>
+                    <p id="total-queries" class="stat-value">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Topics Identified</h3>
+                    <p id="total-topics" class="stat-value">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Report Generated</h3>
+                    <p id="report-date" class="stat-value">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Auto-Detected Clusters</h3>
+                    <p id="auto-detected" class="stat-value">-</p>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="chart-container">
+                    <h2>Topic Distribution (Pie Chart)</h2>
+                    <canvas id="topic-pie-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>Top 5 Topics: Volume & Quality (Stacked Bar)</h2>
+                    <p class="chart-description"> Colors = AI performance feedback (helpful vs. not helpful)</p>
+                    <canvas id="topic-bar-chart"></canvas>
+                </div>
+            </section>
+
+            <!-- Topic Details Section -->
+            <section class="details-section">
+                <h2>Topic Details & Sample Queries</h2>
+                <div id="topic-details-list"></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Modal for Sample Queries -->
+    <div id="sample-queries-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-topic-name">Sample Queries</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Sample Student Queries:</strong></p>
+                <ul id="modal-sample-queries" class="sample-queries-list"></ul>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='analytics.js') }}"></script>
+</body>
+</html>

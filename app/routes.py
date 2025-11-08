@@ -3,7 +3,7 @@ Flask API Routes (ROLE 2: The "API Router")
 Handles all HTTP endpoints and connects frontend to core services.
 """
 from flask import request, render_template, jsonify, session, current_app as app
-from .services import firestore_service, rag_service, kg_service, canvas_service, gcs_service, gemini_service, analytics_logging_service
+from .services import firestore_service, rag_service, kg_service, canvas_service, gcs_service, gemini_service, analytics_logging_service, analytics_reporting_service
 import os
 import logging
 import shutil
@@ -49,6 +49,25 @@ def launch():
         user_roles=role,
         user_id = user_id,
         app_state=state
+    )
+
+
+@app.route('/analytics/<course_id>', methods=['GET'])
+def analytics_dashboard(course_id):
+    """
+    Analytics Dashboard - Professor-only page to view course analytics.
+    
+    This page shows:
+    - Cluster analysis of student queries
+    - Topic distribution charts (pie and bar)
+    - Sample queries for each cluster
+    - Ability to regenerate reports
+    """
+    
+    # Render the analytics dashboard
+    return render_template(
+        'analytics.html',
+        course_id=course_id,
     )
 
 
@@ -233,7 +252,6 @@ def chat():
         "response": answer 
     })
 
-
 @app.route('/api/get-graph', methods=['GET'])
 def get_graph():
     """
@@ -341,7 +359,6 @@ def get_analytics(course_id):
     Returns cluster analysis and insights for professors.
     """
     try:
-        from .services import analytics_reporting_service
         
         report = analytics_reporting_service.get_analytics_report(course_id)
         
@@ -380,8 +397,6 @@ def run_analytics():
         }), 400
     
     try:
-        from .services import analytics_reporting_service
-        
         # Run analytics with auto-detection or specified clusters
         if n_clusters:
             report = analytics_reporting_service.run_daily_analytics(

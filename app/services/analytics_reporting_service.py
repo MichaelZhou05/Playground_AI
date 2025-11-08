@@ -103,7 +103,7 @@ def determine_optimal_clusters(vectors, max_clusters: int = 10) -> int:
             
             # The elbow is where the second derivative is largest (most positive)
             # This indicates the point where adding clusters stops being as beneficial
-            elbow_index = np.argmax(second_diff) + 2  # +2 because we lost 2 elements in diff operations
+            elbow_index = min(np.argmax(second_diff) + 2, len(k_values) - 1)  # +2 because we lost 2 elements in diff operations
             
             optimal_k = k_values[elbow_index]
         
@@ -202,8 +202,16 @@ def run_daily_analytics(course_id: str, n_clusters: int = None, auto_detect_clus
             if not cluster_doc_ids:
                 continue
             
-            # Get events for this cluster
-            cluster_events = firestore_service.get_analytics_events_by_ids(cluster_doc_ids[:10])  # Use top 10
+            # Get ALL events for this cluster (for rating counts)
+            all_cluster_events = firestore_service.get_analytics_events_by_ids(cluster_doc_ids)
+            
+            # Count ratings
+            good_count = sum(1 for event in all_cluster_events if event.get('rating') == 'helpful')
+            bad_count = sum(1 for event in all_cluster_events if event.get('rating') == 'not_helpful')
+            none_count = sum(1 for event in all_cluster_events if not event.get('rating'))
+            
+            # Get top 10 for labeling and samples
+            cluster_events = all_cluster_events[:10]
             
             # Extract query texts
             query_texts = [event.get('query_text', '') for event in cluster_events if event.get('query_text')]
@@ -211,13 +219,18 @@ def run_daily_analytics(course_id: str, n_clusters: int = None, auto_detect_clus
             # Generate AI label for this cluster
             cluster_label = _label_cluster(query_texts)
             
-            # Store cluster info
+            # Store cluster info with ratings
             clusters[cluster_label] = {
                 'count': len(cluster_doc_ids),
-                'sample_queries': query_texts[:3]  # Include 3 sample queries
+                'sample_queries': query_texts[:3],  # Include 3 sample queries
+                'ratings': {
+                    'good': good_count,
+                    'bad': bad_count,
+                    'none': none_count
+                }
             }
             
-            logger.info(f"Cluster '{cluster_label}': {len(cluster_doc_ids)} queries")
+            logger.info(f"Cluster '{cluster_label}': {len(cluster_doc_ids)} queries (👍 {good_count}, 👎 {bad_count}, ⚪ {none_count})")
         
         # Step 5: Generate comprehensive report
         report = {
