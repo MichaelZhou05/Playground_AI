@@ -18,7 +18,7 @@ Dependencies:
 """
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List
 import sys
 import os
 
