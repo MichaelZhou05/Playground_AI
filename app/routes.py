@@ -54,10 +54,14 @@ def initialize_course():
     Returns:
         JSON response with status and corpus info
     """
+    course_id = None
     try:
         data = request.json
         course_id = data.get('course_id')
-        topics = data.get('topics', '').split(",")
+        topics = data.get('topics')
+        if not topics or not any(t.strip() for t in topics.split(",")):
+            return jsonify({"error": "topics is required"}), 400
+        topics = topics.split(",")
         
         if not course_id:
             return jsonify({"error": "course_id is required"}), 400
@@ -140,7 +144,7 @@ def initialize_course():
         })
         
     except Exception as e:
-        logger.error(f"Error initializing course {course_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error initializing course {course_id or 'unknown'}: {str(e)}", exc_info=True)
         
         # Try to update Firestore with error status
         try:
