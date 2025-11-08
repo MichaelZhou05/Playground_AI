@@ -2,10 +2,23 @@
 Knowledge Graph Service
 Handles all networkx graph construction and topic summarization.
 """
+import sys
 import networkx as nx
 import json
-from vertexai.preview import rag
-from vertexai.generative_models import GenerativeModel
+import logging
+import os
+
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+from app.services import gemini_service
+
+logger = logging.getLogger(__name__)
+
+
+SUMMARY_QUERY_TEMPLATE = (
+    "Write a 1-paragraph summary for the topic: {topic}."
+)
 
 def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tuple[str, str, str]:
     """
@@ -67,15 +80,12 @@ def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tupl
         file_name_to_id[file_name] = file_id
     
     # Step 2: Create Topic Nodes and Query RAG
-    # Use corpus_id directly as corpus resource name (should be full resource path from rag_service)
-    # Per ProjectPlan: contexts = rag.retrieve_contexts(corpus.name, topic)
-    corpus_resource = corpus_id
-    
-    # Initialize Gemini model for summaries
-    model = GenerativeModel("gemini-pro")
+    # Use RAG service to retrieve context for each topic
     
     for i, topic in enumerate(topics):
         topic_id = f"topic_{i+1}"
+        
+        logger.info(f"Processing topic {i+1}/{len(topics)}: {topic}")
         
         # Create topic node
         topic_node = {
@@ -88,61 +98,23 @@ def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tupl
         G.add_node(topic_id, **topic_node)
         nodes.append(topic_node)
         
-        # Query RAG corpus for this topic
+        # Query RAG corpus for this topic using rag_service
         try:
-            # Retrieve contexts from RAG corpus
-            # Per ProjectPlan line 126: contexts = rag.retrieve_contexts(corpus.name, topic)
-            contexts = rag.retrieve_contexts(
-                parent=corpus_resource,
-                query=topic,
-                similarity_top_k=10  # Get top 10 relevant chunks
+            # Use rag_service to retrieve context
+            summary, source_names = gemini_service.generate_answer_with_context(
+                query=SUMMARY_QUERY_TEMPLATE.format(topic=topic),
+                corpus_id=corpus_id,
             )
             
-            # Extract source file information
+            # Extract unique source file IDs
             source_files = []
-            source_names = []
-            context_texts = []
-            
-            for context in contexts:
-                # Extract source display name (per ProjectPlan line 142)
-                source_name = getattr(context, 'source_display_name', None) or getattr(context, 'source', 'Unknown')
-                source_names.append(source_name)
-                
-                # Per ProjectPlan line 129: use source.file_id directly if available
-                # Fallback to name matching if file_id is not present
-                file_id = None
-                if hasattr(context, 'file_id'):
-                    # Direct file_id from context (preferred method per ProjectPlan)
-                    file_id = str(getattr(context, 'file_id'))
-                else:
-                    # Fallback: match by source name to file name
-                    for file_name, fid in file_name_to_id.items():
-                        if file_name in source_name or source_name in file_name:
-                            file_id = fid
-                            break
-                
-                if file_id and file_id not in source_files:
-                    source_files.append(file_id)
-                
-                # Collect context text for summary
-                context_text = getattr(context, 'text', None) or getattr(context, 'content', '')
-                if context_text:
-                    context_texts.append(context_text)
-            
-            # Generate summary using Gemini
-            # Per ProjectPlan line 127: "Using this context: [contexts], write a 1-paragraph summary for the topic: [topic]."
-            summary = ""
-            if context_texts:
-                # Combine contexts for summary generation
-                combined_context = "\n\n".join(context_texts[:5])  # Use top 5 contexts
-                prompt = f"Using this context: {combined_context}, write a 1-paragraph summary for the topic: {topic}."
-                
-                try:
-                    response = model.generate_content(prompt)
-                    summary = response.text if hasattr(response, 'text') else str(response)
-                except Exception as e:
-                    # Fallback if Gemini fails
-                    summary = f"Summary for {topic} based on course materials."
+            for source_name in source_names:
+                # Match source name to file IDs
+                for file_name, fid in file_name_to_id.items():
+                    if file_name in source_name or source_name in file_name:
+                        if fid not in source_files:
+                            source_files.append(fid)
+                        break
             
             # Store topic data
             kg_data[topic_id] = {
@@ -161,6 +133,7 @@ def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tupl
                 edges.append(edge)
                 
         except Exception as e:
+            logger.error(f"Error processing topic {topic}: {e}")
             # If RAG query fails, still create the topic node but with empty data
             kg_data[topic_id] = {
                 'summary': f"Error retrieving information for {topic}.",
