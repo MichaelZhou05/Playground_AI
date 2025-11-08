@@ -7,7 +7,6 @@ import json
 from vertexai.preview import rag
 from vertexai.generative_models import GenerativeModel
 
-
 def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tuple[str, str, str]:
     """
     Builds the complete knowledge graph with topics, files, and connections.
@@ -172,5 +171,10 @@ def build_knowledge_graph(topic_list: list, corpus_id: str, files: list) -> tupl
     nodes_json = json.dumps(nodes)
     edges_json = json.dumps(edges)
     data_json = json.dumps(kg_data)
+
+    print("NODES: ", nodes)
+    print("EDGES: ", edges)
+    print("DATA: ", kg_data)
+
     
     return (nodes_json, edges_json, data_json)
