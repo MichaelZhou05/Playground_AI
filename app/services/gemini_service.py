@@ -44,7 +44,7 @@ def generate_answer(query: str, model_name: str = DEFAULT_MODEL) -> str:
     
     Args:
         query: The user's question or prompt
-        model_name: Gemini model to use (default: gemini-1.5-flash)
+        model_name: Gemini model to use (default: gemini-2.5-flash-lite)
         
     Returns:
         Generated answer text
