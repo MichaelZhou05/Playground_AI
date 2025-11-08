@@ -17,7 +17,7 @@ Dependencies:
 - gemini_service: For AI-powered cluster labeling
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict
 import sys
 import os
@@ -228,7 +228,7 @@ def run_daily_analytics(course_id: str, n_clusters: int = None, auto_detect_clus
             'optimal_clusters': n_clusters,  # Include the k value used
             'auto_detected': auto_detect_clusters,  # Flag whether it was auto-detected
             'clusters': clusters,
-            'generated_at': datetime.utcnow().isoformat()
+            'generated_at': datetime.now(timezone.utc).isoformat()
         }
         
         # Step 6: Save report to Firestore

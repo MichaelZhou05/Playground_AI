@@ -3,6 +3,7 @@ Firestore Service
 Handles all Cloud Firestore operations for course data persistence.
 """
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 import os
 import logging
 
@@ -174,12 +175,12 @@ def get_analytics_events(course_id: str, event_type: str = None) -> list[dict]:
         ]
     """
     _ensure_db()
+
     
-    # Build query
-    query = db.collection(ANALYTICS_COLLECTION).where('course_id', '==', course_id)
+    query = db.collection(ANALYTICS_COLLECTION).where(filter=FieldFilter('course_id', '==', course_id))
     
     if event_type:
-        query = query.where('type', '==', event_type)
+        query = query.where(filter=FieldFilter('type', '==', event_type))
     
     # Fetch all matching documents
     results = []
@@ -212,7 +213,6 @@ def get_analytics_events_by_ids(doc_ids: list[str]) -> list[dict]:
     
     if not doc_ids:
         return []
-    
     # Firestore 'in' queries are limited to 10 items, so batch if needed
     results = []
     batch_size = 10
@@ -220,9 +220,13 @@ def get_analytics_events_by_ids(doc_ids: list[str]) -> list[dict]:
     for i in range(0, len(doc_ids), batch_size):
         batch = doc_ids[i:i + batch_size]
         
-        # Query using document IDs
-        docs = db.collection(ANALYTICS_COLLECTION).where('__name__', 'in', 
-            [db.collection(ANALYTICS_COLLECTION).document(doc_id) for doc_id in batch]
+        # Query using document IDs with filter keyword argument
+        docs = db.collection(ANALYTICS_COLLECTION).where(
+            filter=FieldFilter(
+                '__name__', 
+                'in', 
+                [db.collection(ANALYTICS_COLLECTION).document(doc_id) for doc_id in batch]
+            )
         ).stream()
         
         for doc in docs:
