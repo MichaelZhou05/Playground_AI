@@ -16,7 +16,6 @@ Dependencies:
 """
 import logging
 from google.cloud import firestore
-from typing import Optional
 import sys
 import os
 
