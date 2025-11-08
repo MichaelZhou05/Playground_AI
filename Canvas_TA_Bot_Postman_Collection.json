@@ -1,0 +1,166 @@
+{
+	"info": {
+		"_postman_id": "canvas-tabot-123-456",
+		"name": "Canvas TA-Bot API",
+		"description": "API endpoints for the Canvas TA-Bot application with RAG and Knowledge Graph functionality",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Initialize Course",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"course_id\": \"12345\",\n    \"topics\": \"Machine Learning,Neural Networks,Deep Learning,Computer Vision\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:5000/api/initialize-course",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"initialize-course"
+					]
+				},
+				"description": "Kicks off the entire RAG + Knowledge Graph pipeline.\n\nSteps:\n1. Creates Firestore doc with status: GENERATING\n2. Downloads files from Canvas to local storage\n3. Uploads files to Google Cloud Storage (GCS)\n4. Creates RAG corpus and imports files from GCS\n5. Builds knowledge graph using RAG context\n6. Cleans up local and GCS files\n7. Finalizes Firestore doc with status: ACTIVE\n\n**Request Body:**\n- `course_id` (required): The Canvas course ID\n- `topics` (required): Comma-separated list of topics for the knowledge graph\n\n**Response:**\n```json\n{\n    \"status\": \"complete\",\n    \"corpus_id\": \"projects/.../ragCorpora/...\",\n    \"files_count\": 15,\n    \"uploaded_count\": 15\n}\n```"
+			},
+			"response": []
+		},
+		{
+			"name": "Chat with TA Bot",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"course_id\": \"12345\",\n    \"query\": \"What is machine learning?\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:5000/api/chat",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"chat"
+					]
+				},
+				"description": "Handles student questions using the RAG-powered TA bot.\n\n**Request Body:**\n- `course_id` (required): The Canvas course ID\n- `query` (required): The student's question\n\n**Response:**\n```json\n{\n    \"answer\": \"Machine learning is...\",\n    \"sources\": [\"Chapter1.pdf\", \"Lecture2.pdf\"]\n}\n```"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Knowledge Graph",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:5000/api/get-graph?course_id=12345",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"get-graph"
+					],
+					"query": [
+						{
+							"key": "course_id",
+							"value": "12345",
+							"description": "The Canvas course ID"
+						}
+					]
+				},
+				"description": "Fetches the knowledge graph data for visualization.\n\n**Query Parameters:**\n- `course_id` (required): The Canvas course ID\n\n**Response:**\n```json\n{\n    \"nodes\": \"[{\\\"id\\\":\\\"topic_1\\\",\\\"label\\\":\\\"Machine Learning\\\",\\\"group\\\":\\\"topic\\\"},...]\",\n    \"edges\": \"[{\\\"from\\\":\\\"topic_1\\\",\\\"to\\\":\\\"file_1\\\"},...]\",\n    \"data\": \"{\\\"topic_1\\\":{\\\"summary\\\":\\\"...\\\",\\\"sources\\\":[...]}}\"\n}\n```"
+			},
+			"response": []
+		},
+		{
+			"name": "LTI Launch (Canvas Entry Point)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "context_id",
+							"value": "12345",
+							"description": "Canvas course ID",
+							"type": "text"
+						},
+						{
+							"key": "roles",
+							"value": "Instructor",
+							"description": "User roles (e.g., Instructor, Student)",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:5000/launch",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"launch"
+					]
+				},
+				"description": "Main LTI entry point from Canvas. This is how Canvas launches the app.\n\n**Form Data:**\n- `context_id` (required): The Canvas course ID\n- `roles` (required): User roles in Canvas\n\n**Response:**\nHTML page with the single-page application"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "course_id",
+			"value": "12345",
+			"type": "string",
+			"description": "Default test course ID"
+		}
+	]
+}
