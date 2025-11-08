@@ -1497,7 +1497,7 @@ async function sendChatMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 course_id: COURSE_ID,
-                message: message
+                query: message
             })
         });
         
@@ -1511,7 +1511,16 @@ async function sendChatMessage() {
         removeChatMessage(loadingId);
         
         // Add assistant response
-        addChatMessage('assistant', result.response || 'Sorry, I could not generate a response.');
+        const answer = result.answer || result.response || 'Sorry, I could not generate a response.';
+        addChatMessage('assistant', answer);
+        
+        // Add sources if available
+        if (result.sources && result.sources.length > 0) {
+            const sourcesText = '📚 Sources:\n' + result.sources.map((src, i) => 
+                `${i + 1}. ${src}`
+            ).join('\n');
+            addChatMessage('sources', sourcesText);
+        }
         
     } catch (error) {
         console.error('Chat error:', error);
@@ -1536,6 +1545,7 @@ function addChatMessage(type, text) {
     
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${type}`;
+    messageDiv.style.whiteSpace = 'pre-wrap';
     messageDiv.textContent = text;
     
     // Generate unique ID for the message
