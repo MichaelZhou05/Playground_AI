@@ -112,17 +112,17 @@ function initializeEventListeners() {
             }
         }
     });
-
-    // Prompt input - focus expands the prompt, Enter sends message
-    promptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && promptInput.value.trim()) {
-            e.preventDefault();
-            const query = promptInput.value.trim();
-            chatInput.value = query;
-            promptInput.value = '';
-            sendMessage();
-        }
-    });
+    if (promptInput) {
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && promptInput.value.trim()) {
+                e.preventDefault();
+                const query = promptInput.value.trim();
+                chatInput.value = query;
+                promptInput.value = '';
+                sendMessage();
+            }
+        });
+    }
 
     // Floating expand button
     chatExpandFab.addEventListener('click', expandChat);
