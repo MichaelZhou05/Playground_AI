@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canvas TA-Bot - Course Editor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTv4asN4vS7D2" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOzGfhy/IogYFBn7+8u3mY4uVg0eRg/0+0nCoUQu7z2ow8m2byb0E6wlDtm" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax6Z4eqCbdV4rSO0RXmWo6K4F3d1hu3VqHR" crossorigin="anonymous"></script>
     <script src="{{ url_for('static', filename='vis-network.min.js') }}"></script>
 </head>
 <body>
@@ -17,8 +21,8 @@
 
     <!-- Editor State: Topic Editor Interface -->
     <div id="init-editor">
-        <p>Review and edit the AI-generated topics for your course:</p>
-        <p class="editor-instructions">Click on a topic to edit its name and summary</p>
+        <p>Review and customize the AI-generated topics for your course</p>
+        <p class="editor-instructions">Click on any topic node to edit its name and summary</p>
         
         <!-- Visual node canvas for topics -->
         <div id="topic-canvas"></div>
@@ -36,7 +40,6 @@
         <div id="chat-interface" class="collapsed" style="display: none;">
             <button id="chat-toggle-btn" class="chat-toggle" title="Expand chat">
                 <span class="arrow-icon">▼</span>
-                <span>Chat with Course Assistant</span>
             </button>
             <div id="chat-messages-container">
                 <div id="chat-messages"></div>

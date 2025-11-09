@@ -300,6 +300,89 @@ function calculateNodeSize(topic, summary, skipVariation = false) {
     };
 }
 
+// Helper function to render LaTeX in an element
+function renderLaTeX(element, text) {
+    if (!text) return;
+    
+    // Check if KaTeX is loaded
+    if (typeof katex === 'undefined' || typeof katex.renderToString === 'undefined') {
+        // KaTeX not loaded yet, set plain text and try again later
+        element.textContent = text;
+        setTimeout(() => renderLaTeX(element, text), 100);
+        return;
+    }
+    
+    // Process LaTeX BEFORE escaping HTML to avoid regex issues
+    // Use a placeholder approach: extract LaTeX, escape HTML, then render LaTeX
+    
+    const placeholders = [];
+    let placeholderIndex = 0;
+    
+    // First, replace block math $$...$$ with placeholders
+    // This must be done first so we don't confuse it with inline math
+    let processedText = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
+        const placeholder = `__LATEX_BLOCK_${placeholderIndex}__`;
+        placeholders.push({
+            placeholder: placeholder,
+            formula: formula.trim(),
+            displayMode: true
+        });
+        placeholderIndex++;
+        return placeholder;
+    });
+    
+    // Then, replace inline math $...$ with placeholders
+    // Since we've already removed all $$...$$, any remaining $...$ must be inline
+    // Use a more permissive pattern that allows spaces and common LaTeX characters
+    processedText = processedText.replace(/\$([^$\n\r]+?)\$/g, (match, formula) => {
+        // Skip empty formulas
+        if (!formula.trim()) {
+            return match;
+        }
+        const placeholder = `__LATEX_INLINE_${placeholderIndex}__`;
+        placeholders.push({
+            placeholder: placeholder,
+            formula: formula.trim(),
+            displayMode: false
+        });
+        placeholderIndex++;
+        return placeholder;
+    });
+    
+    // Escape HTML in the remaining text
+    processedText = processedText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    
+    // Replace placeholders with rendered LaTeX
+    placeholders.forEach(({ placeholder, formula, displayMode }) => {
+        try {
+            const rendered = katex.renderToString(formula, { 
+                displayMode: displayMode, 
+                throwOnError: false 
+            });
+            processedText = processedText.replace(placeholder, rendered);
+        } catch (e) {
+            // If rendering fails, put back the original LaTeX syntax
+            const originalSyntax = displayMode ? `$$${formula}$$` : `$${formula}$`;
+            processedText = processedText.replace(placeholder, originalSyntax);
+        }
+    });
+    
+    element.innerHTML = processedText;
+}
+
+// Helper function to get raw text from an element (extracting from rendered LaTeX)
+function getRawTextFromElement(element) {
+    // If element has data attribute with raw text, use that
+    if (element.dataset.rawText) {
+        return element.dataset.rawText;
+    }
+    // Otherwise, try to extract from textContent (may not work perfectly with LaTeX)
+    return element.textContent || element.innerText || '';
+}
+
 // Render the topic editor with visual nodes
 function renderTopicEditor(topicsData) {
     const canvas = document.getElementById('topic-canvas');
@@ -341,6 +424,13 @@ function renderTopicEditor(topicsData) {
         deleteBtn.dataset.index = index;
         deleteBtn.innerHTML = '&times;';
         
+        // Add click handler to delete button
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent node click handler from firing
+            const deleteIndex = parseInt(deleteBtn.dataset.index);
+            deleteTopicNode(deleteIndex);
+        });
+        
         // Create editable title (always visible)
         const title = document.createElement('div');
         title.className = 'node-title';
@@ -353,10 +443,14 @@ function renderTopicEditor(topicsData) {
         const summary = document.createElement('div');
         summary.className = 'node-summary';
         summary.contentEditable = 'true';
-        summary.textContent = item.summary;
+        // Store raw text in data attribute
+        summary.dataset.rawText = item.summary || '';
         summary.dataset.index = index;
         summary.dataset.field = 'summary';
         summary.style.display = 'none'; // Hidden by default
+        
+        // Initially set as plain text (will be rendered as LaTeX when expanded)
+        summary.textContent = item.summary || '';
         
         // Add elements to node
         node.appendChild(deleteBtn);
@@ -365,6 +459,9 @@ function renderTopicEditor(topicsData) {
         
         // Setup click-to-expand and inline editing handlers
         setupNodeExpandHandlers(node, title, summary, index);
+        
+        // Setup drag functionality
+        setupNodeDragHandlers(node, index);
         
         canvas.appendChild(node);
     });
@@ -441,6 +538,10 @@ function setupNodeExpandHandlers(node, title, summary, index) {
         // Don't toggle if clicking on delete button or if already editing
         if (e.target.closest('.node-delete-btn')) return;
         if (e.target.contentEditable === 'true' && isExpanded) return;
+        // Don't expand if this was a drag operation
+        if (node.dataset.wasDragged === 'true') {
+            return;
+        }
         
         if (!isExpanded) {
             // Collapse any other expanded nodes first
@@ -476,6 +577,18 @@ function setupNodeExpandHandlers(node, title, summary, index) {
             isExpanded = true;
             window.currentExpandedNode = { node, title, summary, handlers: { setExpanded: (val) => { isExpanded = val; } } };
         }
+        
+        // When focusing for editing, show raw text instead of rendered LaTeX
+        const rawText = summary.dataset.rawText || summary.textContent;
+        summary.textContent = rawText;
+        summary.contentEditable = 'true';
+    });
+    
+    // Update raw text as user types in summary
+    summary.addEventListener('input', () => {
+        if (summary.contentEditable === 'true') {
+            summary.dataset.rawText = summary.textContent;
+        }
     });
     
     // Save on blur - check if focus left the node entirely
@@ -492,11 +605,24 @@ function setupNodeExpandHandlers(node, title, summary, index) {
                 if (newTitle) {
                     window.topicsData[index].topic = newTitle;
                     window.topicsData[index].summary = newSummary;
+                    // Update raw text in data attribute
+                    summary.dataset.rawText = newSummary;
+                }
+                
+                // Re-render LaTeX before collapsing
+                if (newSummary) {
+                    renderLaTeX(summary, newSummary);
                 }
                 
                 // Collapse node
                 collapseNode(node, summary);
                 isExpanded = false;
+            } else if (activeElement !== summary && isExpanded) {
+                // If focus left summary but still in node, re-render LaTeX
+                const rawText = summary.dataset.rawText || summary.textContent;
+                if (rawText) {
+                    renderLaTeX(summary, rawText);
+                }
             }
         }, 10);
     };
@@ -517,6 +643,140 @@ function setupNodeExpandHandlers(node, title, summary, index) {
     summary.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             summary.blur();
+        }
+    });
+}
+
+// Setup drag handlers for a node
+function setupNodeDragHandlers(node, index) {
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+    let dragThreshold = 5; // Minimum pixels to move before considering it a drag
+    let hasMoved = false; // Track if mouse has moved during drag
+    
+    const startDrag = (e) => {
+        // Don't start drag if clicking on delete button, editable content, or if node is expanded
+        if (e.target.closest('.node-delete-btn')) return;
+        if (e.target.contentEditable === 'true') return;
+        if (node.classList.contains('expanded')) return;
+        
+        // Get initial mouse position
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        dragStartX = clientX;
+        dragStartY = clientY;
+        
+        // Get initial node position
+        const rect = node.getBoundingClientRect();
+        const canvas = document.getElementById('topic-canvas');
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        initialLeft = rect.left - canvasRect.left;
+        initialTop = rect.top - canvasRect.top;
+        
+        // Prevent default to avoid text selection
+        e.preventDefault();
+        
+        // Set up move and end handlers
+        const handleMove = (e) => {
+            const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+            const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const deltaX = currentX - dragStartX;
+            const deltaY = currentY - dragStartY;
+            
+            // Check if we've moved enough to consider it a drag
+            if (!isDragging && (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold)) {
+                isDragging = true;
+                hasMoved = true;
+                node.style.cursor = 'grabbing';
+                node.style.opacity = '0.8';
+                node.style.zIndex = '1000';
+                node.style.transition = 'none'; // Disable transitions during drag
+                // Mark node to prevent click event
+                node.dataset.wasDragged = 'true';
+            }
+            
+            if (isDragging) {
+                // Calculate new position
+                const canvas = document.getElementById('topic-canvas');
+                const canvasRect = canvas.getBoundingClientRect();
+                const nodeWidth = node.offsetWidth;
+                const nodeHeight = node.offsetHeight;
+                
+                let newLeft = initialLeft + deltaX;
+                let newTop = initialTop + deltaY;
+                
+                // Constrain to canvas bounds
+                newLeft = Math.max(0, Math.min(newLeft, canvasRect.width - nodeWidth));
+                newTop = Math.max(0, Math.min(newTop, canvasRect.height - nodeHeight));
+                
+                // Update node position
+                node.style.left = newLeft + 'px';
+                node.style.top = newTop + 'px';
+            }
+        };
+        
+        const handleEnd = (e) => {
+            if (isDragging) {
+                // Update stored position
+                const finalLeft = parseFloat(node.style.left);
+                const finalTop = parseFloat(node.style.top);
+                
+                node.dataset.originalLeft = finalLeft;
+                node.dataset.originalTop = finalTop;
+                
+                // Reset styles
+                node.style.cursor = '';
+                node.style.opacity = '';
+                node.style.zIndex = '';
+                node.style.transition = ''; // Re-enable transitions
+                
+                // Clear drag flag after a short delay to prevent click
+                setTimeout(() => {
+                    node.dataset.wasDragged = 'false';
+                    hasMoved = false;
+                }, 100);
+            } else {
+                // If we didn't drag, clear the flag immediately
+                hasMoved = false;
+                node.dataset.wasDragged = 'false';
+            }
+            
+            isDragging = false;
+            
+            // Remove event listeners
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('mouseup', handleEnd);
+            document.removeEventListener('touchmove', handleMove);
+            document.removeEventListener('touchend', handleEnd);
+        };
+        
+        // Add event listeners
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+        document.addEventListener('touchmove', handleMove);
+        document.addEventListener('touchend', handleEnd);
+    };
+    
+    // Add drag start handlers
+    node.addEventListener('mousedown', startDrag);
+    node.addEventListener('touchstart', startDrag);
+    
+    // Add cursor style on hover (when not dragging)
+    node.addEventListener('mouseenter', () => {
+        if (!isDragging && !node.classList.contains('expanded')) {
+            node.style.cursor = 'grab';
+        }
+    });
+    
+    node.addEventListener('mouseleave', () => {
+        if (!isDragging) {
+            node.style.cursor = '';
         }
     });
 }
@@ -542,6 +802,18 @@ function expandNode(node, title, summary) {
     
     // Show summary
     summary.style.display = 'block';
+    
+    // Render LaTeX in summary if not currently being edited
+    // Use a small delay to ensure DOM is ready and KaTeX is loaded
+    if (document.activeElement !== summary) {
+        const rawText = summary.dataset.rawText || summary.textContent;
+        // Use requestAnimationFrame to ensure rendering happens after display change
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                renderLaTeX(summary, rawText);
+            }, 50);
+        });
+    }
     
     // Dim other nodes
     const allNodes = canvas.querySelectorAll('.topic-node');
@@ -845,13 +1117,11 @@ function deleteTopicNode(index) {
         return;
     }
     
-    if (confirm('Are you sure you want to delete this topic?')) {
-        // Remove from data
-        window.topicsData.splice(index, 1);
-        
-        // Re-render nodes
-        renderTopicEditor(window.topicsData);
-    }
+    // Remove from data
+    window.topicsData.splice(index, 1);
+    
+    // Re-render nodes
+    renderTopicEditor(window.topicsData);
 }
 
 // Collect topics data and submit to backend
@@ -1184,9 +1454,15 @@ function initializeGraph() {
         
         const summaryDiv = document.createElement('div');
         summaryDiv.className = 'node-summary';
-        summaryDiv.textContent = item.summary;
         summaryDiv.contentEditable = 'false';
         summaryDiv.style.cursor = 'default';
+        // Store raw text and render LaTeX
+        summaryDiv.dataset.rawText = item.summary || '';
+        if (item.summary) {
+            renderLaTeX(summaryDiv, item.summary);
+        } else {
+            summaryDiv.textContent = '';
+        }
         
         nodeDiv.appendChild(titleDiv);
         nodeDiv.appendChild(summaryDiv);
