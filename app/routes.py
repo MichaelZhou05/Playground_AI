@@ -162,8 +162,8 @@ def initialize_course():
         #     topics = topics.split(",")
         
         # Step 1: Create Firestore doc with status: GENERATING
-        logger.info("Step 1: Creating Firestore document...")
-        firestore_service.create_course_doc(course_id)
+        # logger.info("Step 1: Creating Firestore document...")
+        # firestore_service.create_course_doc(course_id)
         
         # Step 2: Download course files from Canvas (downloads to local storage)
         logger.info("Step 2: Fetching course files from Canvas...")
@@ -180,20 +180,21 @@ def initialize_course():
         logger.info(f"Retrieved {len(files)} files from Canvas")
         
         # Step 3: Upload files to Google Cloud Storage (GCS)
-        logger.info("Step 3: Uploading files to Google Cloud Storage...")
-        files = gcs_service.upload_course_files(files, course_id)
+        # logger.info("Step 3: Uploading files to Google Cloud Storage...")
+        # files = gcs_service.upload_course_files(files, course_id)
         
         # Count successful uploads
-        successful_uploads = sum(1 for f in files if f.get('gcs_uri'))
-        logger.info(f"Uploaded {successful_uploads}/{len(files)} files to GCS")
+        # successful_uploads = sum(1 for f in files if f.get('gcs_uri'))
+        # logger.info(f"Uploaded {successful_uploads}/{len(files)} files to GCS")
         
         # Step 4: Create RAG corpus and import files from GCS
-        logger.info("Step 4: Creating RAG corpus and importing files...")
-        corpus_id = rag_service.create_and_provision_corpus(
-            files=files,
-            corpus_name_suffix=f"Course {course_id}"
-        )
-        logger.info(f"Created corpus: {corpus_id}")
+        # logger.info("Step 4: Creating RAG corpus and importing files...")
+        # corpus_id = rag_service.create_and_provision_corpus(
+        #     files=files,
+        #     corpus_name_suffix=f"Course {course_id}"
+        # )
+        # logger.info(f"Created corpus: {corpus_id}")
+
         # Step 4.3: Summarize all files included:
         file_to_summary = {}
 
@@ -208,7 +209,6 @@ def initialize_course():
 
             summary = gemini_service.summarize_file(
                 file_path=local_path,
-                prompt="Summarize this file in one paragraph. Describe what is covered."
             )
 
             file_to_summary[display_name] = summary
@@ -226,13 +226,13 @@ def initialize_course():
             topics = topics.split(",")
         
         # Step 5: Build knowledge graph
-        logger.info("Step 5: Building knowledge graph...")
-        kg_nodes, kg_edges, kg_data = kg_service.build_knowledge_graph(
-            topic_list=topics,
-            corpus_id=corpus_id,
-            files=files
-        )
-        logger.info("Knowledge graph built successfully")
+        # logger.info("Step 5: Building knowledge graph...")
+        # kg_nodes, kg_edges, kg_data = kg_service.build_knowledge_graph(
+        #     topic_list=topics,
+        #     corpus_id=corpus_id,
+        #     files=files
+        # )
+        # logger.info("Knowledge graph built successfully")
         
         # Step 6: Clean up local files
         logger.info("Step 6: Cleaning up local files...")
@@ -242,49 +242,52 @@ def initialize_course():
             logger.info(f"Deleted local directory: {local_dir}")
         
         # Step 7: Clean up GCS files (optional - comment out if you want to keep them)
-        logger.info("Step 7: Cleaning up GCS files...")
-        gcs_service.delete_course_files(course_id)
-        logger.info("GCS files deleted")
+        # logger.info("Step 7: Cleaning up GCS files...")
+        # gcs_service.delete_course_files(course_id)
+        # logger.info("GCS files deleted")
         
         # Step 8: Finalize Firestore document with all data
-        logger.info("Step 8: Finalizing Firestore document...")
-        update_payload = {
-            'corpus_id': corpus_id,
-            'indexed_files': indexed_files_map,
-            'kg_nodes': kg_nodes,
-            'kg_edges': kg_edges,
-            'kg_data': kg_data
-        }
-        firestore_service.finalize_course_doc(course_id, update_payload)
+        # logger.info("Step 8: Finalizing Firestore document...")
+        # update_payload = {
+        #     'corpus_id': corpus_id,
+        #     'indexed_files': indexed_files_map,
+        #     'kg_nodes': kg_nodes,
+        #     'kg_edges': kg_edges,
+        #     'kg_data': kg_data
+        # }
+        # firestore_service.finalize_course_doc(course_id, update_payload)
         
-        logger.info(f"Course {course_id} initialization complete!")
+        # logger.info(f"Course {course_id} initialization complete!")
         
-        return jsonify({
-            "status": "complete",
-            "corpus_id": corpus_id,
-            "files_count": len(files),
-            "uploaded_count": successful_uploads,
-            "kg_nodes": kg_nodes,
-            "kg_edges": kg_edges,
-            "kg_data": kg_data
-        })
+        # return jsonify({
+        #     "status": "complete",
+        #     "corpus_id": corpus_id,
+        #     "files_count": len(files),
+        #     "uploaded_count": successful_uploads,
+        #     "kg_nodes": kg_nodes,
+        #     "kg_edges": kg_edges,
+        #     "kg_data": kg_data
+        # })
+        return jsonify(success=True)
+
         
     except Exception as e:
         logger.error(f"Error initializing course {course_id or 'unknown'}: {str(e)}", exc_info=True)
         
-        # Try to update Firestore with error status
-        try:
-            firestore_service.db.collection(firestore_service.COURSES_COLLECTION).document(course_id).update({
-                'status': 'ERROR',
-                'error_message': str(e)
-            })
-        except:
-            pass
+        # # Try to update Firestore with error status
+        # try:
+        #     firestore_service.db.collection(firestore_service.COURSES_COLLECTION).document(course_id).update({
+        #         'status': 'ERROR',
+        #         'error_message': str(e)
+        #     })
+        # except:
+        #     pass
         
-        return jsonify({
-            "error": "Failed to initialize course",
-            "message": str(e)
-        }), 500
+        # return jsonify({
+        #     "error": "Failed to initialize course",
+        #     "message": str(e)
+        # }), 500
+
 
 
 @app.route('/api/chat', methods=['POST'])
