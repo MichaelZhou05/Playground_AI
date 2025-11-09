@@ -96,6 +96,69 @@ function initializeEventListeners() {
         // Close if clicking directly on the modal (not the content)
         if (e.target === topicModal) closeModal();
     });
+    
+    // Remove topic button handler
+    const removeTopicBtn = document.getElementById('remove-topic-btn');
+    if (removeTopicBtn) {
+        removeTopicBtn.addEventListener('click', async () => {
+            if (!currentTopic) {
+                alert("No topic selected");
+                return;
+            }
+            
+            // Confirm deletion
+            const topicName = currentTopic.label;
+            const confirmed = confirm(`Are you sure you want to remove the topic "${topicName}"?\n\nThis action cannot be undone.`);
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            try {
+                // Show loading state
+                removeTopicBtn.disabled = true;
+                removeTopicBtn.textContent = "Removing...";
+                
+                // POST to backend
+                const response = await fetch('/api/remove-topic', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        course_id: COURSE_ID,
+                        topic_id: currentTopic.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    console.log("Topic removed successfully:", data);
+                    
+                    // Close modal
+                    closeModal();
+                    
+                    // Reload the knowledge graph to reflect the removal
+                    await loadKnowledgeGraph();
+                    
+                    // Show success message
+                    alert(`Topic "${topicName}" removed successfully!`);
+                } else {
+                    console.error("Failed to remove topic:", data);
+                    alert(`Error: ${data.error || data.message || 'Failed to remove topic'}`);
+                }
+            } catch (error) {
+                console.error("Error removing topic:", error);
+                alert("Failed to remove topic. Please try again.");
+            } finally {
+                // Reset button state
+                removeTopicBtn.disabled = false;
+                removeTopicBtn.textContent = "🗑️ Remove Topic";
+            }
+        });
+    }
+    
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (isChatExpanded) {
@@ -250,15 +313,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Hook for save button
     if (addTopicSave) {
-        addTopicSave.addEventListener("click", () => {
+        addTopicSave.addEventListener("click", async () => {
             const name = document.getElementById("new-topic-name").value.trim();
             const summary = document.getElementById("new-topic-summary").value.trim();
             
-            console.log("TODO: Save topic:", { name, summary });
-
-            // Later: POST to backend
+            if (!name) {
+                alert("Please enter a topic name");
+                return;
+            }
             
-            closeAddTopicModal();
+            console.log("Adding topic:", { name, summary });
+
+            try {
+                // Show loading state
+                addTopicSave.disabled = true;
+                addTopicSave.textContent = "Adding...";
+                
+                // POST to backend
+                const response = await fetch('/api/add-topic', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        course_id: COURSE_ID,
+                        topic_name: name,
+                        summary: summary || undefined // Only include if provided
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    console.log("Topic added successfully:", data);
+                    
+                    // Close modal
+                    closeAddTopicModal();
+                    
+                    // Clear inputs
+                    document.getElementById("new-topic-name").value = "";
+                    document.getElementById("new-topic-summary").value = "";
+                    
+                    // Reload the knowledge graph to show new topic
+                    await loadKnowledgeGraph();
+                    
+                    // Show success message
+                    alert(`Topic "${name}" added successfully!`);
+                } else {
+                    console.error("Failed to add topic:", data);
+                    alert(`Error: ${data.error || 'Failed to add topic'}`);
+                }
+            } catch (error) {
+                console.error("Error adding topic:", error);
+                alert("Failed to add topic. Please try again.");
+            } finally {
+                // Reset button state
+                addTopicSave.disabled = false;
+                addTopicSave.textContent = "Save";
+            }
         });
     }
 });
