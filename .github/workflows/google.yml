@@ -36,11 +36,17 @@ name: 'Build and Deploy to GKE'
 on:
   push:
     branches:
-      - '"main"'
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
 
 env:
-  GKE_CLUSTER: 'autopilot-cluster-1	'
-  DEPLOYMENT_NAME: 'gke-test' # TODO: update to your deployment name
+  PROJECT_ID: 'playground-ai-478208'
+  GAR_LOCATION: 'us-east1'
+  GKE_ZONE: 'us-east1-a'
+  GKE_CLUSTER: 'autopilot-cluster-1'
+  DEPLOYMENT_NAME: 'playground-web'
   REPOSITORY: 'playground-ai'
   IMAGE: 'web-app'
   WORKLOAD_IDENTITY_PROVIDER: 'projects/817349898318/locations/global/workloadIdentityPools/playground-ai-github'
