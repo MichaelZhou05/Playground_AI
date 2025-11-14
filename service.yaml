@@ -1,0 +1,13 @@
+# This file creates a network Load Balancer to expose your app.
+apiVersion: v1
+kind: Service
+metadata:
+  name: playground-web-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: playground-web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000

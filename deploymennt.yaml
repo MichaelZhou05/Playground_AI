@@ -1,0 +1,29 @@
+# This file defines your web application deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-web
+  labels:
+    app: playground-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: playground-web
+  template:
+    metadata:
+      labels:
+        app: playground-web
+    spec:
+      containers:
+        - name: web-app-container
+          image: us-east1-docker.pkg.dev/playground-ai-478208/playground/web-app:TAG
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
