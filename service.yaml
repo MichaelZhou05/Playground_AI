@@ -4,10 +4,10 @@ kind: Service
 metadata:
   name: playground-web-service
 spec:
-  type: LoadBalancer
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
   selector:
     app: playground-web
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 5000
