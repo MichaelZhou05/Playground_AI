@@ -8,3 +8,5 @@ images:
 resources:
   - deployment.yaml
   - service.yaml
+  - ingress.yaml
+  - managed-certificates.yaml
