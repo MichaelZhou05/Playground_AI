@@ -44,7 +44,6 @@ on:
 env:
   PROJECT_ID: 'playground-ai-478208'
   GAR_LOCATION: 'us-east1'
-  GKE_ZONE: 'us-east1-b'
   GKE_CLUSTER: 'autopilot-cluster-1'
   DEPLOYMENT_NAME: 'playground-web'
   REPOSITORY: 'playground'
@@ -91,7 +90,7 @@ jobs:
         with:
           project_id: '${{ env.PROJECT_ID }}'
           cluster_name: '${{ env.GKE_CLUSTER }}'
-          location: '${{ env.GKE_ZONE }}'
+          location: '${{ env.GAR_LOCATION }}'
 
       # Build the Docker image
       - name: 'Build and push Docker container'
