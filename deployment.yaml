@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: web-app-container
-          image: us-east1-docker.pkg.dev/playground-ai-478208/playground/web-app:TAG
+          image: web-app
           ports:
             - containerPort: 5000
           resources:
