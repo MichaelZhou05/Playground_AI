@@ -172,7 +172,6 @@ function renderCharts(clusters) {
     // Prepare data for BAR CHART - show top 5 only
     const top5Clusters = clusters.slice(0, 5);
     const top5Labels = top5Clusters.map(cluster => cluster.label || 'Unknown Topic');
-    const top5Counts = top5Clusters.map(cluster => cluster.query_count || 0);
     const top5Colors = generateColors(top5Clusters.length);
 
     // Destroy existing charts if they exist
